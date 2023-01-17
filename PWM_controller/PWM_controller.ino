@@ -14,13 +14,37 @@
 #define VBAT_PIN 2
 #define AR_VOLTAGE_CONST 163209
 
+
+
 #define wdt_int() WDTCR |= _BV(WDIE) // | _BV(WDCE) | _BV(WDE) // WDT goes to interrupt, not reset
 
-unsigned int floatV = 1350;
+//Battery and Panel Data.
+const unsigned int CAPACITY = 26; //26AH
+const unsigned int CYCLE_VOLTAGE = 1420; //14.4 - 30mV/°C adicional de 25°C (Se asume temperatura en EC de 30-35°C dentro de la caja)
+const unsigned int FLOAT_VOLTAGE = 1330; //13.5 - 20mV/°C adicional de 25°C ( Se asume temperatura en EC de 30-35°C dentro de la caja)
+const unsigned int PANEL_POWER = 5000; //50W * 100
+
+//unsigned int MAX_CURRENT = min((CAPACITY*400/16), (PANEL_POWER/2020)); //2020 = 20.2 V max voltage from Panel 
+//Calculating Manually to save memory on Attiny
+//unsigned long T_ABS_MAX = 0.3*(CAPACITY/MAX_CURRENT)
+unsigned long T_ABS_MAX = 89856000; //3.05 H * 3600 seg * 1000 * adjTimer(8) = 89856000 ms
+unsigned long T_ABS = 0;
+
+unsigned long T_BULK = 7200000; //15 min * 60 seg * 1000 * adjTimer(8)=7200000 ms
+//default para T_BULK: tiempo que demora en alcanzar el estado de ABSORTION.
+
+unsigned long T_MIN_VOLT = millis();
+unsigned int minVoltage = 1350;
+
+unsigned long T_REFERENCE = 0;
+unsigned long T_ACTUAL = 0;
+
+
+
 unsigned int vcc = 500;
 
-
 unsigned int voltage = 1350;
+unsigned int setPoint = FLOAT_VOLTAGE;
 int stepSize = 0;
 int pulseWidth = 0;
 
@@ -28,6 +52,16 @@ int pulseWidth = 0;
 
 //when ADC completed, take an interrupt
 EMPTY_INTERRUPT (ADC_vect);
+
+//estados del algoritmo de carga
+enum charge_state {
+  BULK,
+  BULK_WAITING_TO_ABSORTION, //ESTADO BULK en el que confirma por 1 minuto que haya llegado al Cycle Voltage
+  ABSORTION,
+  FLOAT
+};
+
+charge_state estado = BULK;
 
 
 void setup() {
@@ -64,7 +98,7 @@ void loop() {
   newReading = (newReading*vcc*100)/AR_VOLTAGE_CONST;
   voltage = (voltage*8 + newReading*2)/10; //Here is the voltage in centivoltios
 
-  stepSize = floatV - voltage; //can be negative
+  stepSize = setPoint - voltage; //can be negative
   pulseWidth += stepSize; //can decrease too!
   pulseWidth = constrain(pulseWidth, 0, 255);
   OCR1B = pulseWidth;
@@ -74,6 +108,59 @@ void loop() {
 //  mySerial.print(" - pulse:");
 //  mySerial.println(pulseWidth);
 //  mySerial.flush();
+
+  T_ACTUAL = millis(); //tiempo actual de ejecucion de programa
+
+  switch(estado){
+    case BULK:
+      if(voltage < minVoltage){ //encuentra el minimo voltage (esto mientras se este descargando en la Noche
+        minVoltage = voltage;
+        T_MIN_VOLT = millis();
+      }
+
+      setPoint = CYCLE_VOLTAGE; //Setpoint to Cycle Voltage
+
+      if(voltage > (CYCLE_VOLTAGE-15)){ //cuando empieze a cargar (en el día), debe de llegar al Cycle Voltage
+        estado = BULK_WAITING_TO_ABSORTION;
+        T_REFERENCE = millis();
+      }
+      break;
+
+    case BULK_WAITING_TO_ABSORTION:
+      setPoint = CYCLE_VOLTAGE;
+
+      if(voltage > (CYCLE_VOLTAGE - 15)){
+        if((T_ACTUAL - T_REFERENCE) >= 480000) { //1min*60seg*1000ms*adjTimer(8) = 480000
+          estado = ABSORTION; //Ha estado en CYCLE_VOLTAGE por al menos 1 min, por lo que cambia a estado ABSORTION
+          T_BULK = T_ACTUAL - T_MIN_VOLT; //This is the real Time (No need to adjTimer)
+          T_REFERENCE = T_ACTUAL;
+        }
+      }else{
+        estado = BULK; //Si en algun momento el voltaje baja, entonces aun no esta cargado hasta el estado de ABSORTION.
+      }
+      break;
+
+    case ABSORTION:
+      setPoint = CYCLE_VOLTAGE;
+      T_ABS = 10*T_BULK; //Time in ABsortion Mode is 10 times the Time in T_BULK, it goes from 15min to a max T_ABS_MAX
+      T_ABS = constrain(T_ABS, (unsigned long) 7200000, T_ABS_MAX);
+      if((T_ACTUAL - T_REFERENCE) >= T_ABS){ //espera el tiempo necesario.
+        estado = FLOAT;
+      }
+      break;
+
+    case FLOAT:
+      setPoint = FLOAT_VOLTAGE;
+
+      if(voltage < 1250){ //llega la noche y lo envia a BULK para que este preparado para la carga completa en el día.
+        estado = BULK;
+      }
+      break;
+
+    default:
+      estado = BULK;
+      break;
+  }
 
 
   set_sleep_mode(SLEEP_MODE_IDLE); // Configure attiny85 sleep mode
