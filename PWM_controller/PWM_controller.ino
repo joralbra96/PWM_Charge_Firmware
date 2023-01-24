@@ -22,12 +22,12 @@
 const unsigned int CAPACITY = 26; //26AH
 const unsigned int CYCLE_VOLTAGE = 1420; //14.4 - 30mV/°C adicional de 25°C (Se asume temperatura en EC de 30-35°C dentro de la caja)
 const unsigned int FLOAT_VOLTAGE = 1330; //13.5 - 20mV/°C adicional de 25°C ( Se asume temperatura en EC de 30-35°C dentro de la caja)
-const unsigned int PANEL_POWER = 5000; //50W * 100
+const unsigned int PANEL_POWER = 11000; //110W * 100
 
 //unsigned int MAX_CURRENT = min((CAPACITY*400/16), (PANEL_POWER/2020)); //2020 = 20.2 V max voltage from Panel 
 //Calculating Manually to save memory on Attiny
 //unsigned long T_ABS_MAX = 0.3*(CAPACITY/MAX_CURRENT)
-unsigned long T_ABS_MAX = 89856000; //3.05 H * 3600 seg * 1000 * adjTimer(8) = 89856000 ms
+unsigned long T_ABS_MAX = 38204082; //1.33 H * 3600 seg * 1000 * adjTimer(8) = 89856000 ms
 unsigned long T_ABS = 0;
 
 unsigned long T_BULK = 7200000; //15 min * 60 seg * 1000 * adjTimer(8)=7200000 ms
