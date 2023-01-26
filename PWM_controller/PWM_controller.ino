@@ -96,9 +96,16 @@ void loop() {
   newReading = newReading/16; //This is a bitwise operation to make a division by 16 (newReading/16)
   //covnersion a centivoltios.
   newReading = (newReading*vcc*100)/AR_VOLTAGE_CONST;
-  voltage = (voltage*8 + newReading*2)/10; //Here is the voltage in centivoltios
+  voltage = (voltage*5 + newReading*5)/10; //Here is the voltage in centivoltios
 
   stepSize = setPoint - voltage; //can be negative
+  if(stepSize > 0){
+    stepSize = 1;
+  }else if(stepSize < 0){
+    stepSize = -1;
+  }else{
+    stepSize = 0;
+  }
   pulseWidth += stepSize; //can decrease too!
   pulseWidth = constrain(pulseWidth, 0, 255);
   OCR1B = pulseWidth;
@@ -129,8 +136,8 @@ void loop() {
     case BULK_WAITING_TO_ABSORTION:
       setPoint = CYCLE_VOLTAGE;
 
-      if(voltage > (CYCLE_VOLTAGE - 15)){
-        if((T_ACTUAL - T_REFERENCE) >= 480000) { //1min*60seg*1000ms*adjTimer(8) = 480000
+      if(voltage > (CYCLE_VOLTAGE - 40)){
+        if((T_ACTUAL - T_REFERENCE) >= 240000) { //1min*60seg*1000ms*adjTimer(8) = 480000
           estado = ABSORTION; //Ha estado en CYCLE_VOLTAGE por al menos 1 min, por lo que cambia a estado ABSORTION
           T_BULK = T_ACTUAL - T_MIN_VOLT; //This is the real Time (No need to adjTimer)
           T_REFERENCE = T_ACTUAL;
@@ -165,7 +172,7 @@ void loop() {
 
   set_sleep_mode(SLEEP_MODE_IDLE); // Configure attiny85 sleep mode
   sleep_enable();
-  WDT_Sleep(WDTO_60MS);
+  WDT_Sleep(WDTO_30MS);
 }
 
 void PWR_stop_ADC()
