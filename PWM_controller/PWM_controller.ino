@@ -12,7 +12,7 @@
 #define DRV_PIN 4
 #define LED_Pin  3 //LED
 #define VBAT_PIN 2
-#define AR_VOLTAGE_CONST 163209
+#define AR_VOLTAGE_CONST 170500
 
 
 
