@@ -2,7 +2,7 @@
 #include <SoftwareSerial.h>
 
 #include <avr/power.h>
-#include <avr/wdt.h>
+#include <avr/wdt.h> //Library for WDT
 #include <avr/sleep.h>
 
 
@@ -100,9 +100,9 @@ void loop() {
 
   stepSize = setPoint - voltage; //can be negative
   if(stepSize > 0){
-    stepSize = 1;
+    stepSize = 2;
   }else if(stepSize < 0){
-    stepSize = -1;
+    stepSize = -2;
   }else{
     stepSize = 0;
   }
@@ -172,7 +172,7 @@ void loop() {
 
   set_sleep_mode(SLEEP_MODE_IDLE); // Configure attiny85 sleep mode
   sleep_enable();
-  WDT_Sleep(WDTO_30MS);
+  WDT_Sleep(WDTO_15MS);
 }
 
 void PWR_stop_ADC()
