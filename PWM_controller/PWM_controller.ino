@@ -1,3 +1,5 @@
+//1MHz
+
 #include "readVcc.h"
 #include <SoftwareSerial.h>
 
